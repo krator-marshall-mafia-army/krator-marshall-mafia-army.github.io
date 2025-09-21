@@ -5,31 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Krater Marshall Mafia Army</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <header>
         <div class="header-content">
             <div class="logo">
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='15' r='8' fill='%23228B22'/%3E%3Cpath d='M22 20 Q30 25 38 20 Q35 30 30 35 Q25 30 22 20' fill='%23228B22'/%3E%3Ccircle cx='26' cy='12' r='2' fill='%23fff'/%3E%3Ccircle cx='34' cy='12' r='2' fill='%23fff'/%3E%3Ccircle cx='26' cy='12' r='1' fill='%23000'/%3E%3Ccircle cx='34' cy='12' r='1' fill='%23000'/%3E%3C/svg%3E" alt="Krater">
-                <h1>KRATER MARSHALL<br>MAFIA ARMY</h1>
+                <h1>KRATOR MARSHALL<br>MAFIA ARMY</h1>
             </div>
             <nav>
                 <ul>
                     <li><a href="#announcements">Announcements</a></li>
-                    <li><a href="#propaganda">Propaganda</a></li>
+                    <li><a href="#members">Members</a></li>
+                    <li><a href="#security">Security</a></li>
                     <li><a href="#videos">Videos</a></li>
-                    <li><a href="#images">Gallery</a></li>
+                    <li><a href="#gallery">Gallery</a></li>
                 </ul>
+                <div class="auth-buttons">
+                    <button id="loginBtn" class="auth-btn">Login</button>
+                    <button id="signupBtn" class="auth-btn">Join Army</button>
+                    <button id="logoutBtn" class="auth-btn" style="display: none;">Logout</button>
+                </div>
             </nav>
         </div>
     </header>
 
+    <!-- Authentication Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="loginForm" class="auth-form">
+                <h3>Login to Krater Army</h3>
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button id="loginSubmit" class="submit-btn">Login</button>
+                <p>Don't have an account? <span id="showSignup" class="link">Join the Army</span></p>
+            </div>
+            <div id="signupForm" class="auth-form" style="display: none;">
+                <h3>Join the Krater Army</h3>
+                <input type="text" id="signupUsername" placeholder="Username" required>
+                <input type="email" id="signupEmail" placeholder="Email" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <textarea id="signupReason" placeholder="Why do you want to join the Krater Army?" required></textarea>
+                <button id="signupSubmit" class="submit-btn">Submit Application</button>
+                <p>Already a member? <span id="showLogin" class="link">Login here</span></p>
+            </div>
+        </div>
+    </div>
+
     <main>
         <section id="hero">
             <div class="hero-content">
-                <h2>JOIN THE GREEN REVOLUTION</h2>
-                <p>The Krater Marshall Mafia Army rises! Unite under the green banner!</p>
-                <button class="cta-button">ENLIST NOW</button>
+                <h2>Krator Marshall Mafia Army</h2>
+                <p>The Krater Marshall Mafia Army rises! Unite under the green banner for order and prosperity.</p>
+                <button class="cta-button" id="heroJoin">ENLIST NOW</button>
             </div>
         </section>
 
@@ -38,43 +71,72 @@
                 <h2>📢 Latest Announcements</h2>
                 <div class="announcements-grid">
                     <div class="announcement">
+                        <div class="date">2025-09-21</div>
+                        <h3>New Member Approval System</h3>
+                        <p>All new recruits must now be approved by leadership. Quality over quantity in our ranks!</p>
+                    </div>
+                    <div class="announcement">
                         <div class="date">2025-09-20</div>
                         <h3>Operation Green Smoke Initiated</h3>
                         <p>All units report to designated sectors. The green revolution begins at dawn!</p>
                     </div>
                     <div class="announcement">
                         <div class="date">2025-09-19</div>
-                        <h3>New Recruits Welcome</h3>
-                        <p>Fresh caterpillars joining our ranks. Training commences immediately!</p>
-                    </div>
-                    <div class="announcement">
-                        <div class="date">2025-09-18</div>
-                        <h3>Territory Expansion</h3>
-                        <p>Successfully claimed three new leaf sectors. Victory tastes sweet!</p>
+                        <h3>Security Enhancement</h3>
+                        <p>New troll detention protocols in effect. Our community remains safe and focused.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="propaganda" class="section">
+        <section id="members" class="section">
             <div class="container">
-                <h2>🎯 Propaganda Central</h2>
-                <div class="propaganda-grid">
-                    <div class="propaganda-item">
-                        <h3>"SMOKE 'EM IF YOU GOT 'EM"</h3>
-                        <p>The official motto of the Krater Marshall Mafia Army. Embrace the green haze of victory!</p>
+                <h2>👥 Army Members</h2>
+                <div class="members-stats">
+                    <div class="stat-card">
+                        <h3 id="totalMembers">0</h3>
+                        <p>Total Members</p>
                     </div>
-                    <div class="propaganda-item">
-                        <h3>"GREEN IS THE ONLY COLOR"</h3>
-                        <p>Abandon your old allegiances. The future is green, the future is Krater!</p>
+                    <div class="stat-card">
+                        <h3 id="pendingApprovals">0</h3>
+                        <p>Pending Applications</p>
                     </div>
-                    <div class="propaganda-item">
-                        <h3>"CRAWL TOGETHER, CONQUER TOGETHER"</h3>
-                        <p>United we inch forward, divided we get squashed. Join the movement!</p>
+                    <div class="stat-card">
+                        <h3 id="activeMembers">0</h3>
+                        <p>Active Members</p>
                     </div>
-                    <div class="propaganda-item">
-                        <h3>"FROM CATERPILLAR TO CONQUEROR"</h3>
-                        <p>Evolution through revolution. Transform yourself, transform the world!</p>
+                </div>
+                <div id="membersList" class="members-grid">
+                    <!-- Members will be loaded here -->
+                </div>
+                <div id="pendingList" class="pending-section" style="display: none;">
+                    <h3>Pending Applications</h3>
+                    <div id="pendingApplications">
+                        <!-- Pending applications will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="security" class="section">
+            <div class="container">
+                <h2>🛡️ Security & Order</h2>
+                <div class="security-grid">
+                    <div class="security-item">
+                        <h3>🚫 Troll Detention Protocol</h3>
+                        <p>Disruptive elements are immediately identified and contained. Our advanced monitoring systems ensure community safety and maintain order within our ranks.</p>
+                    </div>
+                    <div class="security-item">
+                        <h3>🔒 Member Verification</h3>
+                        <p>All members undergo thorough screening. Only those who demonstrate genuine commitment to the green cause are accepted into our brotherhood.</p>
+                    </div>
+                    <div class="security-item">
+                        <h3>⚖️ Justice System</h3>
+                        <p>Fair but firm enforcement of our community standards. Those who threaten our unity face swift and appropriate consequences.</p>
+                    </div>
+                    <div class="security-item">
+                        <h3>🛡️ Protected Environment</h3>
+                        <p>Our territory is safeguarded against infiltration. Members can focus on growth and collaboration without external interference.</p>
                     </div>
                 </div>
             </div>
@@ -86,55 +148,55 @@
                 <div class="videos-grid">
                     <div class="video-placeholder">
                         <div class="play-button">▶</div>
-                        <h4>Krater's First Speech</h4>
-                        <p>The legendary moment when Krater first united the scattered caterpillars</p>
+                        <h4>Krater's Leadership Address</h4>
+                        <p>The vision and principles that guide our organization</p>
                     </div>
                     <div class="video-placeholder">
                         <div class="play-button">▶</div>
-                        <h4>Training Montage</h4>
-                        <p>Watch our army transform from humble crawlers to unstoppable force</p>
+                        <h4>Member Training Program</h4>
+                        <p>How we develop skilled and dedicated members</p>
                     </div>
                     <div class="video-placeholder">
                         <div class="play-button">▶</div>
-                        <h4>Territory Conquest</h4>
-                        <p>Exclusive footage of our latest territorial expansion</p>
+                        <h4>Community Growth</h4>
+                        <p>Documenting our expansion and achievements</p>
                     </div>
                     <div class="video-placeholder">
                         <div class="play-button">▶</div>
-                        <h4>Green Manifesto</h4>
-                        <p>Krater explains the philosophy behind the green revolution</p>
+                        <h4>Security Briefing</h4>
+                        <p>How we maintain order and protect our members</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="images" class="section">
+        <section id="gallery" class="section">
             <div class="container">
                 <h2>📸 Gallery</h2>
                 <div class="images-grid">
                     <div class="image-placeholder">
-                        <span>🐛</span>
-                        <p>Krater Portrait</p>
+                        <span>👑</span>
+                        <p>Leadership Council</p>
                     </div>
                     <div class="image-placeholder">
-                        <span>🚬</span>
-                        <p>Smoke Signals</p>
+                        <span>🏛️</span>
+                        <p>Headquarters</p>
                     </div>
                     <div class="image-placeholder">
-                        <span>🍃</span>
+                        <span>🌿</span>
                         <p>Territory Map</p>
                     </div>
                     <div class="image-placeholder">
-                        <span>⚡</span>
-                        <p>Battle Formation</p>
+                        <span>🎖️</span>
+                        <p>Honor Awards</p>
                     </div>
                     <div class="image-placeholder">
-                        <span>👑</span>
-                        <p>Crown of Leaves</p>
+                        <span>🤝</span>
+                        <p>Member Meetings</p>
                     </div>
                     <div class="image-placeholder">
-                        <span>🔥</span>
-                        <p>Victory Celebration</p>
+                        <span>🏆</span>
+                        <p>Achievements</p>
                     </div>
                 </div>
             </div>
@@ -143,12 +205,11 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Krater Marshall Mafia Army. All leaves reserved.</p>
-            <p>🐛 "In Green We Trust" 🐛</p>
+            <p>&copy; 2025 Krater Marshall Mafia Army. All rights reserved.</p>
+            <p>🌿 "Unity Through Green Leadership" 🌿</p>
         </div>
     </footer>
 
     <script src="script.js"></script>
 </body>
 </html>
-
