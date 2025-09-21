@@ -1,3 +1,277 @@
+// Firebase Configuration
+const firebaseConfig = {
+    // Replace with your Firebase config
+    apiKey: "AIzaSyA6xriXjElUBkYIB1qMyLeuMhyCFxNnCeM",
+    authDomain: "gfkfgkfk.firebaseapp.com",
+    projectId: "gfkfgkfk",
+    storageBucket: "gfkfgkfk.firebasestorage.app",
+    messagingSenderId: "195888510997",
+    appId: "1:195888510997:web:a2f81b4c427aa4d660b61c"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// DOM Elements
+const loginBtn = document.getElementById('loginBtn');
+const signupBtn = document.getElementById('signupBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const authModal = document.getElementById('authModal');
+const closeModal = document.querySelector('.close');
+const loginForm = document.getElementById('loginForm');
+const signupForm = document.getElementById('signupForm');
+const showSignup = document.getElementById('showSignup');
+const showLogin = document.getElementById('showLogin');
+const heroJoin = document.getElementById('heroJoin');
+
+// Member management elements
+const totalMembersEl = document.getElementById('totalMembers');
+const pendingApprovalsEl = document.getElementById('pendingApprovals');
+const activeMembersEl = document.getElementById('activeMembers');
+const membersListEl = document.getElementById('membersList');
+const pendingListEl = document.getElementById('pendingList');
+const pendingApplicationsEl = document.getElementById('pendingApplications');
+
+// Current user
+let currentUser = null;
+
+// Authentication State Observer
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        currentUser = user;
+        loginBtn.style.display = 'none';
+        signupBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+
+        // Check if user is approved
+        const userDoc = await db.collection('members').doc(user.uid).get();
+        if (userDoc.exists && userDoc.data().approved) {
+            loadMemberData();
+        }
+    } else {
+        currentUser = null;
+        loginBtn.style.display = 'block';
+        signupBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+    }
+});
+
+// Modal Controls
+loginBtn.addEventListener('click', () => {
+    authModal.style.display = 'block';
+    showLoginForm();
+});
+
+signupBtn.addEventListener('click', () => {
+    authModal.style.display = 'block';
+    showSignupForm();
+});
+
+heroJoin.addEventListener('click', () => {
+    authModal.style.display = 'block';
+    showSignupForm();
+});
+
+closeModal.addEventListener('click', () => {
+    authModal.style.display = 'none';
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === authModal) {
+        authModal.style.display = 'none';
+    }
+});
+
+showSignup.addEventListener('click', showSignupForm);
+showLogin.addEventListener('click', showLoginForm);
+
+function showLoginForm() {
+    loginForm.style.display = 'block';
+    signupForm.style.display = 'none';
+}
+
+function showSignupForm() {
+    loginForm.style.display = 'none';
+    signupForm.style.display = 'block';
+}
+
+// Login Functionality
+document.getElementById('loginSubmit').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+        authModal.style.display = 'none';
+    } catch (error) {
+        alert('Login failed: ' + error.message);
+    }
+});
+
+// Signup Functionality
+document.getElementById('signupSubmit').addEventListener('click', async () => {
+    const username = document.getElementById('signupUsername').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    const reason = document.getElementById('signupReason').value;
+
+    try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        // Create member application
+        await db.collection('members').doc(user.uid).set({
+            username: username,
+            email: email,
+            reason: reason,
+            approved: false,
+            rank: 'pending',
+            joinDate: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert('Application submitted! Please wait for approval from leadership.');
+        authModal.style.display = 'none';
+    } catch (error) {
+        alert('Signup failed: ' + error.message);
+    }
+});
+
+// Logout Functionality
+logoutBtn.addEventListener('click', async () => {
+    try {
+        await auth.signOut();
+    } catch (error) {
+        alert('Logout failed: ' + error.message);
+    }
+});
+
+// Load Member Data
+async function loadMemberData() {
+    try {
+        // Load stats
+        const membersSnapshot = await db.collection('members').get();
+        const approvedMembers = membersSnapshot.docs.filter(doc => doc.data().approved);
+        const pendingMembers = membersSnapshot.docs.filter(doc => !doc.data().approved);
+
+        totalMembersEl.textContent = approvedMembers.length;
+        pendingApprovalsEl.textContent = pendingMembers.length;
+        activeMembersEl.textContent = approvedMembers.filter(doc => doc.data().lastActive).length;
+
+        // Load approved members
+        loadMembers(approvedMembers);
+
+        // Check if current user is admin/mod and show pending applications
+        const currentUserDoc = await db.collection('members').doc(currentUser.uid).get();
+        if (currentUserDoc.exists) {
+            const userData = currentUserDoc.data();
+            if (userData.rank === 'owner' || userData.rank === 'mod') {
+                loadPendingApplications(pendingMembers);
+                pendingListEl.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading member data:', error);
+    }
+}
+
+function loadMembers(members) {
+    membersListEl.innerHTML = '';
+
+    members.forEach(memberDoc => {
+        const member = memberDoc.data();
+        const memberCard = document.createElement('div');
+        memberCard.className = 'member-card';
+
+        memberCard.innerHTML = `
+            <div class="member-rank ${member.rank}">${member.rank.toUpperCase()}</div>
+            <h4>${member.username}</h4>
+            <p>Joined: ${member.joinDate ? member.joinDate.toDate().toLocaleDateString() : 'Unknown'}</p>
+        `;
+
+        membersListEl.appendChild(memberCard);
+    });
+}
+
+function loadPendingApplications(pendingMembers) {
+    pendingApplicationsEl.innerHTML = '';
+
+    pendingMembers.forEach(memberDoc => {
+        const member = memberDoc.data();
+        const applicationDiv = document.createElement('div');
+        applicationDiv.className = 'pending-application';
+
+        applicationDiv.innerHTML = `
+            <h4>${member.username}</h4>
+            <p><strong>Email:</strong> ${member.email}</p>
+            <p><strong>Reason:</strong> ${member.reason}</p>
+            <div class="application-actions">
+                <button class="approve-btn" onclick="approveMember('${memberDoc.id}')">Approve</button>
+                <button class="reject-btn" onclick="rejectMember('${memberDoc.id}')">Reject</button>
+            </div>
+        `;
+
+        pendingApplicationsEl.appendChild(applicationDiv);
+    });
+}
+
+// Admin Functions
+async function approveMember(memberId) {
+    try {
+        // Get member data to determine rank
+        const memberDoc = await db.collection('members').doc(memberId).get();
+        const memberData = memberDoc.data();
+
+        // Assign rank based on some criteria (you can customize this)
+        let rank = 'low'; // Default rank
+
+        // Simple rank assignment logic (customize as needed)
+        if (memberData.email.includes('admin') || memberData.username.toLowerCase().includes('admin')) {
+            rank = 'mod';
+        } else if (memberData.reason && memberData.reason.length > 100) {
+            rank = 'mid'; // More detailed applications get mid rank
+        }
+
+        await db.collection('members').doc(memberId).update({
+            approved: true,
+            rank: rank,
+            approvedDate: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert(`Member approved with rank: ${rank}`);
+        loadMemberData(); // Refresh the data
+    } catch (error) {
+        alert('Error approving member: ' + error.message);
+    }
+}
+
+async function rejectMember(memberId) {
+    try {
+        await db.collection('members').doc(memberId).delete();
+        alert('Member application rejected and removed.');
+        loadMemberData(); // Refresh the data
+    } catch (error) {
+        alert('Error rejecting member: ' + error.message);
+    }
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', () => {
+    // Load public member stats (without authentication)
+    loadPublicStats();
+});
+
+async function loadPublicStats() {
+    try {
+        const membersSnapshot = await db.collection('members').where('approved', '==', true).get();
+        totalMembersEl.textContent = membersSnapshot.size;
+    } catch (error) {
+        console.error('Error loading public stats:', error);
+        totalMembersEl.textContent = '150'; // Fallback number
+    }
+}
+
 // Smooth scrolling for navigation links
 document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
@@ -12,293 +286,15 @@ document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
     });
 });
 
-// CTA Button click effect
-document.querySelector('.cta-button').addEventListener('click', function() {
-    // Create recruitment modal effect
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-        animation: fadeIn 0.3s ease;
-    `;
-
-    const content = document.createElement('div');
-    content.style.cssText = `
-        background: linear-gradient(135deg, #1a4d1a, #0d2818);
-        border: 2px solid #00ff00;
-        padding: 3rem;
-        text-align: center;
-        color: #00ff00;
-        font-family: 'Courier New', monospace;
-        max-width: 500px;
-        animation: slideIn 0.5s ease;
-    `;
-
-    content.innerHTML = `
-        <h2 style="color: #32CD32; margin-bottom: 1rem; text-shadow: 0 0 10px #00ff00;">🐛 ENLISTMENT CONFIRMED 🐛</h2>
-        <p style="margin-bottom: 2rem;">Welcome to the Krater Marshall Mafia Army, soldier!</p>
-        <p style="margin-bottom: 2rem;">Your green transformation begins now...</p>
-        <button onclick="this.closest('div').remove()" style="
-            background: #228B22;
-            color: black;
-            border: none;
-            padding: 1rem 2rem;
-            cursor: pointer;
-            font-weight: bold;
-            text-transform: uppercase;
-        ">PROCEED TO TRAINING</button>
-    `;
-
-    modal.appendChild(content);
-    document.body.appendChild(modal);
-
-    // Add CSS animations
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-    `;
-    document.head.appendChild(style);
-
-    // Auto-close after 5 seconds
-    setTimeout(() => {
-        if (modal.parentNode) {
-            modal.remove();
-        }
-    }, 5000);
-});
-
-// Video placeholder interactions
+// Add some interactive effects
 document.querySelectorAll('.video-placeholder').forEach(video => {
-    video.addEventListener('click', function() {
-        const title = this.querySelector('h4').textContent;
-
-        // Create video modal
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            animation: fadeIn 0.3s ease;
-        `;
-
-        const videoContent = document.createElement('div');
-        videoContent.style.cssText = `
-            background: #000;
-            border: 2px solid #00ff00;
-            padding: 2rem;
-            text-align: center;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            max-width: 600px;
-        `;
-
-        videoContent.innerHTML = `
-            <h3 style="color: #32CD32; margin-bottom: 1rem;">${title}</h3>
-            <div style="
-                width: 400px;
-                height: 225px;
-                background: linear-gradient(45deg, #1a4d1a, #0d2818);
-                border: 1px solid #00ff00;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                margin: 1rem auto;
-                font-size: 3rem;
-            ">🎬</div>
-            <p style="margin: 1rem 0;">[CLASSIFIED FOOTAGE]</p>
-            <button onclick="this.closest('div').remove()" style="
-                background: #228B22;
-                color: black;
-                border: none;
-                padding: 0.5rem 1rem;
-                cursor: pointer;
-            ">CLOSE</button>
-        `;
-
-        modal.appendChild(videoContent);
-        document.body.appendChild(modal);
-
-        // Auto-close after 3 seconds
-        setTimeout(() => {
-            if (modal.parentNode) {
-                modal.remove();
-            }
-        }, 3000);
+    video.addEventListener('click', () => {
+        alert('Video player would open here. Integration with video hosting service needed.');
     });
 });
 
-// Image gallery interactions
 document.querySelectorAll('.image-placeholder').forEach(image => {
-    image.addEventListener('click', function() {
-        const title = this.querySelector('p').textContent;
-        const emoji = this.querySelector('span').textContent;
-
-        // Create image modal
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            animation: fadeIn 0.3s ease;
-        `;
-
-        const imageContent = document.createElement('div');
-        imageContent.style.cssText = `
-            background: linear-gradient(135deg, #1a4d1a, #0d2818);
-            border: 2px solid #00ff00;
-            padding: 3rem;
-            text-align: center;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            max-width: 500px;
-        `;
-
-        imageContent.innerHTML = `
-            <h3 style="color: #32CD32; margin-bottom: 1rem;">${title}</h3>
-            <div style="
-                font-size: 8rem;
-                margin: 1rem 0;
-                text-shadow: 0 0 20px #00ff00;
-            ">${emoji}</div>
-            <p style="margin: 1rem 0;">[CLASSIFIED IMAGE]</p>
-            <button onclick="this.closest('div').remove()" style="
-                background: #228B22;
-                color: black;
-                border: none;
-                padding: 0.5rem 1rem;
-                cursor: pointer;
-            ">CLOSE</button>
-        `;
-
-        modal.appendChild(imageContent);
-        document.body.appendChild(modal);
-
-        // Auto-close after 4 seconds
-        setTimeout(() => {
-            if (modal.parentNode) {
-                modal.remove();
-            }
-        }, 4000);
+    image.addEventListener('click', () => {
+        alert('Image gallery would open here. Image hosting integration needed.');
     });
-});
-
-// Add typing effect to announcements
-document.addEventListener('DOMContentLoaded', function() {
-    const announcements = document.querySelectorAll('.announcement p');
-
-    announcements.forEach((announcement, index) => {
-        const text = announcement.textContent;
-        announcement.textContent = '';
-
-        setTimeout(() => {
-            let i = 0;
-            const typeWriter = setInterval(() => {
-                if (i < text.length) {
-                    announcement.textContent += text.charAt(i);
-                    i++;
-                } else {
-                    clearInterval(typeWriter);
-                }
-            }, 50);
-        }, index * 1000);
-    });
-});
-
-// Propaganda item hover effects
-document.querySelectorAll('.propaganda-item').forEach(item => {
-    item.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.05) rotate(1deg)';
-    });
-
-    item.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1) rotate(0deg)';
-    });
-});
-
-// Add matrix-like falling characters effect
-function createMatrixEffect() {
-    const canvas = document.createElement('canvas');
-    canvas.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: -1;
-        opacity: 0.1;
-    `;
-
-    document.body.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const chars = '🐛🍃💚⚡🚬';
-    const charArray = chars.split('');
-    const fontSize = 20;
-    const columns = canvas.width / fontSize;
-    const drops = Array(Math.floor(columns)).fill(1);
-
-    function draw() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = '#00ff00';
-        ctx.font = fontSize + 'px monospace';
-
-        for (let i = 0; i < drops.length; i++) {
-            const text = charArray[Math.floor(Math.random() * charArray.length)];
-            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                drops[i] = 0;
-            }
-            drops[i]++;
-        }
-    }
-
-    setInterval(draw, 100);
-}
-
-// Initialize matrix effect
-createMatrixEffect();
-
-// Handle window resize
-window.addEventListener('resize', function() {
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
 });
